@@ -1,0 +1,14 @@
+export { default as BookManagementPage } from './BookManagementPage';
+export { default as CatalogPage } from './CatalogPage';
+export { default as DashboardPage } from './DashboardPage';
+export { default as InventoryManagementPage } from './InventoryManagementPage';
+export { default as LoanManagementPage } from './LoanManagementPage';
+export { default as LoginPage } from './LoginPage';
+export { default as MyLoansPage } from './MyLoansPage';
+export { default as MyReservationsPage } from './MyReservationsPage';
+export { default as OverdueLoansPage } from './OverdueLoansPage';
+export { default as ReportsPage } from './ReportsPage';
+export { default as ReservationsPage } from './ReservationsPage';
+export { default as ResourceManagementPage } from './ResourceManagementPage';
+export { default as SanctionsPage } from './SanctionsPage';
+export { default as UserManagementPage } from './UserManagementPage';

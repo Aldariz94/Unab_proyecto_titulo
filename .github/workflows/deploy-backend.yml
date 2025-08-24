@@ -1,0 +1,52 @@
+﻿name: Deploy Backend to VPS
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "backend/**"
+  workflow_dispatch:
+    
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH update & reload
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            APP_DIR=/var/www/Proyecto_Titulo
+            REPO_SSH=git@github.com:Aldariz94/Proyecto_Titulo.git
+            BRANCH=main
+            PM2_NAME=mern-backend
+
+            ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+
+            if [ -d "$APP_DIR/.git" ]; then
+              GIT_SSH_COMMAND="ssh -i ~/.ssh/github_deploy -o IdentitiesOnly=yes" git -C "$APP_DIR" fetch --all --prune
+              GIT_SSH_COMMAND="ssh -i ~/.ssh/github_deploy -o IdentitiesOnly=yes" git -C "$APP_DIR" reset --hard origin/$BRANCH
+            else
+              rm -rf "$APP_DIR"
+              GIT_SSH_COMMAND="ssh -i ~/.ssh/github_deploy -o IdentitiesOnly=yes" git clone -b $BRANCH --depth 1 "$REPO_SSH" "$APP_DIR"
+            fi
+
+            cd "$APP_DIR/backend"
+            corepack enable || true
+            corepack prepare yarn@1.22.19 --activate || true
+            yarn install --frozen-lockfile || true
+
+            # .env desde Secrets si no existe
+            if [ ! -f .env ]; then
+              cat > .env <<'EOF'
+            PORT=5000
+            MONGODB_URI=${{ secrets.BACKEND_MONGODB_URI }}
+            JWT_SECRET=${{ secrets.BACKEND_JWT_SECRET }}
+            RATE_LIMIT_MAX=${{ secrets.BACKEND_RATE_LIMIT_MAX }}
+            EOF
+            fi
+
+            pm2 reload $PM2_NAME || pm2 start server.js --name $PM2_NAME
+            pm2 save || true

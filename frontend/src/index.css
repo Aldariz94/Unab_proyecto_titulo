@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+    /* Estilo base para todos los inputs, selects y textareas */
+    .form-input {
+        @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
+               dark:bg-gray-700 dark:border-gray-600 dark:text-white 
+               focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+               transition-colors duration-200;
+    }
+
+    /* Estilo base para todos los botones */
+    .btn {
+        @apply flex items-center justify-center px-4 py-2 font-medium text-white rounded-md 
+               whitespace-nowrap shadow-sm
+               transition-all duration-200 ease-in-out
+               transform hover:-translate-y-px hover:shadow-lg 
+               focus:outline-none focus:ring-2 focus:ring-offset-2
+               disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none;
+    }
+
+    /* Variantes de color para los botones */
+    .btn-primary {
+        @apply bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500;
+    }
+    
+    .btn-success {
+        @apply bg-green-600 hover:bg-green-700 focus:ring-green-500;
+    }
+
+    .btn-danger {
+        @apply bg-red-600 hover:bg-red-700 focus:ring-red-500;
+    }
+
+    .btn-secondary {
+        @apply bg-gray-600 hover:bg-gray-700 focus:ring-gray-500 text-white
+               dark:bg-gray-200 dark:hover:bg-gray-300 dark:text-gray-800 dark:focus:ring-gray-400;
+    }
+
+
+        /* --- INICIO DE LA MODIFICACIÓN --- */
+    /* Nueva clase para tablas que se adaptan */
+    .responsive-table th, .responsive-table td {
+        @apply px-2 py-3 text-sm whitespace-nowrap; /* Estilo base para MÓVIL (compacto) */
+    }
+
+    @screen md {
+        /* Estilo para TABLETS y ESCRITORIO (más espaciado) */
+        .responsive-table th, .responsive-table td {
+            @apply px-6 py-4;
+        }
+    }
+    /* --- FIN DE LA MODIFICACIÓN --- */
+    
+}
