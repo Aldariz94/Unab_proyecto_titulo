@@ -27,65 +27,47 @@ exports.searchUsers = async (req, res) => {
     }
 };
 
-// @route   GET api/search/items?q=...
-// @desc    Buscar ítems (libros o recursos) disponibles
+// --- FUNCIÓN DE BÚSQUEDA DE ÍTEMS CORREGIDA Y OPTIMIZADA ---
 exports.searchAvailableItems = async (req, res) => {
     try {
         const query = req.query.q;
-        if (!query || query.length < 3) { // No buscar si la consulta es muy corta
+        if (!query || query.length < 2) {
             return res.json([]);
         }
 
         const searchRegex = new RegExp(query, 'i');
 
-        // Búsqueda Optimizada para Libros usando Aggregation
-        const bookResults = await Exemplar.aggregate([
-            { $match: { estado: 'disponible' } },
-            {
-                $lookup: {
-                    from: 'books', // El nombre de la colección de Libros
-                    localField: 'libroId',
-                    foreignField: '_id',
-                    as: 'bookInfo'
-                }
-            },
-            { $unwind: '$bookInfo' },
-            { $match: { 'bookInfo.titulo': searchRegex } },
-            { $limit: 10 }, // Limitar los resultados para una respuesta rápida
-            {
-                $project: {
-                    _id: 1,
-                    type: { $literal: 'Exemplar' },
-                    name: { $concat: ['$bookInfo.titulo', ' (Copia #', { $toString: '$numeroCopia' }, ')'] }
-                }
-            }
+        // 1. Buscamos en paralelo los libros y recursos que coincidan con el nombre
+        const [matchingBooks, matchingResources] = await Promise.all([
+            Book.find({ titulo: searchRegex }).limit(10).lean(),
+            ResourceCRA.find({ nombre: searchRegex }).limit(10).lean()
         ]);
 
-        // Búsqueda Optimizada para Recursos usando Aggregation
-        const resourceResults = await ResourceInstance.aggregate([
-            { $match: { estado: 'disponible' } },
-            {
-                $lookup: {
-                    from: 'resourcecras', // El nombre de la colección de Recursos
-                    localField: 'resourceId',
-                    foreignField: '_id',
-                    as: 'resourceInfo'
-                }
-            },
-            { $unwind: '$resourceInfo' },
-            { $match: { 'resourceInfo.nombre': searchRegex } },
-            { $limit: 10 },
-            {
-                $project: {
-                    _id: 1,
-                    type: { $literal: 'ResourceInstance' },
-                    name: { $concat: ['$resourceInfo.nombre', ' (', '$codigoInterno', ')'] }
-                }
-            }
+        // 2. Obtenemos los IDs de los libros y recursos encontrados
+        const bookIds = matchingBooks.map(b => b._id);
+        const resourceIds = matchingResources.map(r => r._id);
+
+        // 3. Buscamos UNA SOLA copia disponible para cada libro/recurso encontrado
+        const [availableExemplars, availableInstances] = await Promise.all([
+            bookIds.length > 0 ? Exemplar.find({ libroId: { $in: bookIds }, estado: 'disponible' }).populate('libroId', 'titulo') : Promise.resolve([]),
+            resourceIds.length > 0 ? ResourceInstance.find({ resourceId: { $in: resourceIds }, estado: 'disponible' }).populate('resourceId', 'nombre') : Promise.resolve([])
         ]);
 
-        const combinedResults = [...bookResults, ...resourceResults].slice(0, 15);
-        res.json(combinedResults);
+        // 4. Mapeamos los resultados para que el frontend los entienda
+        const bookResults = availableExemplars.map(e => ({
+            _id: e._id,
+            type: 'Exemplar',
+            name: `${e.libroId.titulo} (Copia #${e.numeroCopia})`
+        }));
+        
+        const resourceResults = availableInstances.map(i => ({
+            _id: i._id,
+            type: 'ResourceInstance',
+            name: `${i.resourceId.nombre} (${i.codigoInterno})`
+        }));
+        
+        // Unimos y limitamos los resultados
+        res.json([...bookResults, ...resourceResults].slice(0, 15));
 
     } catch (err) {
         console.error(err.message);
