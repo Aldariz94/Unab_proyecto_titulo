@@ -32,44 +32,60 @@ exports.searchUsers = async (req, res) => {
 exports.searchAvailableItems = async (req, res) => {
     try {
         const query = req.query.q;
-        if (!query) {
+        if (!query || query.length < 3) { // No buscar si la consulta es muy corta
             return res.json([]);
         }
 
-        // Buscar en Libros (a través de sus ejemplares)
-        const availableExemplars = await Exemplar.find({ estado: 'disponible' })
-            .populate({
-                path: 'libroId',
-                match: { titulo: { $regex: query, $options: 'i' } },
-                select: 'titulo autor'
-            });
+        const searchRegex = new RegExp(query, 'i');
 
-        // Buscar en Recursos (a través de sus instancias)
-        const availableInstances = await ResourceInstance.find({ estado: 'disponible' })
-            .populate({
-                path: 'resourceId',
-                match: { nombre: { $regex: query, $options: 'i' } },
-                select: 'nombre'
-            });
-        
-        // Formatear resultados para el frontend
-        const bookResults = availableExemplars
-            .filter(e => e.libroId) // Filtrar los que no coincidieron con el título
-            .map(e => ({
-                _id: e._id,
-                type: 'Exemplar',
-                name: `${e.libroId.titulo} (Copia #${e.numeroCopia})`
-            }));
-        
-        const resourceResults = availableInstances
-            .filter(i => i.resourceId) // Filtrar los que no coincidieron con el nombre
-            .map(i => ({
-                _id: i._id,
-                type: 'ResourceInstance',
-                name: `${i.resourceId.nombre} (${i.codigoInterno})`
-            }));
+        // Búsqueda Optimizada para Libros usando Aggregation
+        const bookResults = await Exemplar.aggregate([
+            { $match: { estado: 'disponible' } },
+            {
+                $lookup: {
+                    from: 'books', // El nombre de la colección de Libros
+                    localField: 'libroId',
+                    foreignField: '_id',
+                    as: 'bookInfo'
+                }
+            },
+            { $unwind: '$bookInfo' },
+            { $match: { 'bookInfo.titulo': searchRegex } },
+            { $limit: 10 }, // Limitar los resultados para una respuesta rápida
+            {
+                $project: {
+                    _id: 1,
+                    type: { $literal: 'Exemplar' },
+                    name: { $concat: ['$bookInfo.titulo', ' (Copia #', { $toString: '$numeroCopia' }, ')'] }
+                }
+            }
+        ]);
 
-        res.json([...bookResults, ...resourceResults].slice(0, 15)); // Limitar resultados combinados
+        // Búsqueda Optimizada para Recursos usando Aggregation
+        const resourceResults = await ResourceInstance.aggregate([
+            { $match: { estado: 'disponible' } },
+            {
+                $lookup: {
+                    from: 'resourcecras', // El nombre de la colección de Recursos
+                    localField: 'resourceId',
+                    foreignField: '_id',
+                    as: 'resourceInfo'
+                }
+            },
+            { $unwind: '$resourceInfo' },
+            { $match: { 'resourceInfo.nombre': searchRegex } },
+            { $limit: 10 },
+            {
+                $project: {
+                    _id: 1,
+                    type: { $literal: 'ResourceInstance' },
+                    name: { $concat: ['$resourceInfo.nombre', ' (', '$codigoInterno', ')'] }
+                }
+            }
+        ]);
+
+        const combinedResults = [...bookResults, ...resourceResults].slice(0, 15);
+        res.json(combinedResults);
 
     } catch (err) {
         console.error(err.message);
