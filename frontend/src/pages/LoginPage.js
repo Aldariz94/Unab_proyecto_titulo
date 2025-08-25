@@ -80,6 +80,14 @@ const LoginPage = () => {
                         </button>
                     </div>
                 </form>
+                <div className="text-center mt-6">
+                        <button 
+                            onClick={() => setShowLogin(false)} 
+                            className="inline-block align-baseline font-bold text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+                        >
+                            ← Volver al Catálogo
+                        </button>
+                    </div>
             </div>
         </div>
     );
