@@ -30,7 +30,7 @@ const LoginPage = () => {
                         onSubmit={handleSubmit} 
                     >
                         <div className="flex justify-center mb-6">
-                            <img src="/logo-colegio.jpg" alt="Logo Colegio" className="h-32" />
+                            <img src="images/logo-colegio.png" alt="Logo Colegio" className="h-32" />
                         </div>
                         <h1 className="text-center text-2xl font-bold mb-8 text-gray-800 dark:text-white">
                             Biblioteca Escolar
